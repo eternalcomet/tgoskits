@@ -154,21 +154,6 @@ impl InterfaceWrapper {
         self.ether_addr
     }
 
-    pub fn setup_ip_addr(&self, ip: IpAddress, prefix_len: u8) {
-        let mut iface = self.iface.lock();
-        iface.update_ip_addrs(|ip_addrs| {
-            ip_addrs.push(IpCidr::new(ip, prefix_len)).unwrap();
-        });
-    }
-
-    pub fn setup_gateway(&self, gateway: IpAddress) {
-        let mut iface = self.iface.lock();
-        match gateway {
-            IpAddress::Ipv4(v4) => iface.routes_mut().add_default_ipv4_route(v4).unwrap(),
-            IpAddress::Ipv6(v6) => iface.routes_mut().add_default_ipv6_route(v6).unwrap(),
-        };
-    }
-
     pub fn poll(&self, sockets: &Mutex<SocketSet>) {
         let mut dev = self.dev.lock();
         let mut iface = self.iface.lock();
@@ -331,12 +316,30 @@ pub fn bench_receive() {
 
 pub(crate) fn init(net_dev: AxNetDevice) {
     let ether_addr = EthernetAddress(net_dev.mac_address().0);
-    let eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
+    let mut eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
 
     let ip = IP.parse().expect("invalid IP address");
     let gateway = GATEWAY.parse().expect("invalid gateway IP address");
-    eth0.setup_ip_addr(ip, IP_PREFIX);
-    eth0.setup_gateway(gateway);
+
+    // We have exclusive ownership before publishing via init_once(), so bypass
+    // the mutex to avoid might_sleep() panicking during early init (IRQs off).
+    eth0.iface.get_mut().update_ip_addrs(|ip_addrs| {
+        ip_addrs.push(IpCidr::new(ip, IP_PREFIX)).unwrap();
+    });
+    match gateway {
+        IpAddress::Ipv4(v4) => eth0
+            .iface
+            .get_mut()
+            .routes_mut()
+            .add_default_ipv4_route(v4)
+            .unwrap(),
+        IpAddress::Ipv6(v6) => eth0
+            .iface
+            .get_mut()
+            .routes_mut()
+            .add_default_ipv6_route(v6)
+            .unwrap(),
+    };
 
     ETH0.init_once(eth0);
     SOCKET_SET.init_once(SocketSetWrapper::new());
