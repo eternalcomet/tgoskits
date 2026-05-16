@@ -142,10 +142,11 @@ impl GenericPTE for Rv64PTE {
     }
 
     fn new_table(paddr: PhysAddr) -> Self {
-        let mut table = Self::new_page(paddr, MappingFlags::empty(), false);
-        // Default table flags: PTEFlags::V
-        table.0 = (table.0 & !0x3ff) | PTEFlags::V.bits() as u64;
-        table
+        // Non-leaf (page table pointer) entry: only the V bit is required.
+        // Do NOT route through set_flags() — it asserts R|X for leaf pages and
+        // applies A/D plus extended memory attributes that are meaningless for
+        // page table pointers.
+        Self(PTEFlags::V.bits() as u64 | ((paddr.as_usize() >> 2) as u64 & Self::PHYS_ADDR_MASK))
     }
 
     fn paddr(&self) -> PhysAddr {
