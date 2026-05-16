@@ -42,7 +42,7 @@ rustflags = [
 ]
 runner = [
     "qemu-system-riscv64",
-    "-m", "128M", # RAM size
+    "-m", "512M", # RAM size
     "-smp", "1", # Number of CPU cores
     "-machine", "virt",
     "-nographic",
@@ -61,7 +61,7 @@ rustflags = [
 ]
 runner = [
     "qemu-system-x86_64",
-    "-m", "128M", # RAM size
+    "-m", "512M", # RAM size
     "-smp", "1", # Number of CPU cores
     "-machine", "q35",
     "-nographic",
@@ -80,7 +80,7 @@ rustflags = [
 ]
 runner = [
     "qemu-system-aarch64",
-    "-m", "128M", # RAM size
+    "-m", "512M", # RAM size
     "-smp", "1", # Number of CPU cores
     "-machine", "virt",
     "-cpu", "cortex-a72",
@@ -100,7 +100,7 @@ rustflags = [
 ]
 runner = [
     "qemu-system-loongarch64",
-    "-m", "128M", # RAM size
+    "-m", "512M", # RAM size
     "-smp", "1", # Number of CPU cores
     "-machine", "virt",
     "-nographic",
