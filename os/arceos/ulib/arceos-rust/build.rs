@@ -124,7 +124,9 @@ fn compile_project(lib_dir: &PathBuf, out_dir: &PathBuf, config_path: &PathBuf) 
     command.env("AX_TARGET", target);
     command.env("AX_MODE", profile);
     command.env("AX_CONFIG_PATH", config_path);
-    command.env("AX_LOG", get_log_level(&features));
+    if env::var("AX_LOG").is_err() {
+        command.env("AX_LOG", get_log_level(&features));
+    }
     if env::var("AX_IP").is_err() {
         command.env("AX_IP", "10.0.2.15");
     }
