@@ -115,3 +115,6 @@ runner = [
 [unstable]
 build-std = ["std", "panic_abort"]
 build-std-features = []
+
+[profile.release]
+lto = false
