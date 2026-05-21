@@ -67,6 +67,7 @@ driver-ramdisk = []
 driver-ixgbe = []
 driver-fxmac = []
 driver-bcm2835-sdhci = []
+driver-cvsd = []
 
 # Logging
 log-level-off = []

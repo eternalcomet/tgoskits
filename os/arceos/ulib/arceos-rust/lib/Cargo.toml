@@ -13,7 +13,7 @@ version = "1.0.1"
 crate-type = ["staticlib"]
 
 [features]
-default = ["fp-simd", "tls", "defplat", "fd"]
+default = ["fp-simd", "tls", "fd"]
 
 # Multicore
 smp = ["ax-feat/smp", "ax-kspin/smp"]
@@ -67,6 +67,7 @@ driver-bcm2835-sdhci = ["ax-feat/driver-bcm2835-sdhci"]
 driver-fxmac = ["ax-feat/driver-fxmac"]
 driver-ixgbe = ["ax-feat/driver-ixgbe"]
 driver-ramdisk = ["ax-feat/driver-ramdisk"]
+driver-cvsd = ["ax-feat/driver-cvsd"]
 
 # Logging
 log-level-debug = []
@@ -75,6 +76,9 @@ log-level-info = []
 log-level-off = []
 log-level-trace = []
 log-level-warn = []
+
+# Platforms
+plat-riscv64-sg2002 = ["dep:ax-plat-riscv64-sg2002", "bus-mmio", "driver-cvsd", "rtc", "irq"]
 
 [dependencies]
 ax-api = { workspace = true, features = ["alloc"] }
@@ -86,3 +90,6 @@ ax-posix-api = { workspace = true, features = ["use-hermit-types"] }
 ax-runtime = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.9.4", default-features = false, features = ["small_rng"] }
+
+# Platform Dependencies
+ax-plat-riscv64-sg2002 = { workspace = true, optional = true, features = ["fp-simd", "irq", "rtc"] }

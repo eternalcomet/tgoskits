@@ -64,7 +64,7 @@ fn generate_config(manifest_dir: &Path, out_dir: &Path) -> PathBuf {
     let template = manifest_dir.join("defconfig.toml");
     let arch = get_arch();
     let platform = get_platform();
-    let platform_config_path = get_platform_config_path(platform);
+    let platform_config_path = get_platform_config_path(&platform);
     let out_config_path = out_dir.join("axconfig.toml");
 
     let command = Command::new("axconfig-gen")
@@ -118,7 +118,16 @@ fn compile_project(lib_dir: &PathBuf, out_dir: &PathBuf, config_path: &PathBuf) 
     let arch = get_arch();
     let target = get_target(&arch);
     let features = env::var("CARGO_CFG_FEATURE").unwrap();
-    let feature_list = features.replace(",", " ");
+    let mut feature_list = features.replace(",", " ");
+
+    // Add myplat feature if custom platform is specified
+    if let Ok(platform) = env::var("AX_PLATFORM") {
+        feature_list.push_str(" myplat plat-");
+        feature_list.push_str(platform.as_str());
+    } else {
+        feature_list.push_str(" defplat");
+    }
+    println!("cargo:warning=FATURES are {}", feature_list);
 
     let mut command = Command::new(cargo());
     command.env("AX_TARGET", target);
@@ -147,10 +156,6 @@ fn compile_project(lib_dir: &PathBuf, out_dir: &PathBuf, config_path: &PathBuf) 
     if !is_debug {
         command.arg("--release");
     }
-    println!(
-        "cargo:warning=FATURES are {}",
-        env::var("CARGO_CFG_FEATURE").unwrap_or("none".to_string())
-    );
     println!("cargo:warning=command: {:?}", command);
 
     let status = command.status().expect("Failed to build ArceOS library.");
@@ -254,7 +259,13 @@ fn get_target(arch: &str) -> &'static str {
     }
 }
 
-fn get_platform() -> &'static str {
+fn get_platform() -> String {
+    // Check if custom platform is specified via environment variable
+    if let Ok(custom_platform) = env::var("AX_PLATFORM") {
+        return custom_platform;
+    }
+
+    // Default platform based on architecture
     let arch = get_arch();
     match arch.as_ref() {
         "x86_64" => "x86-pc",
@@ -263,6 +274,7 @@ fn get_platform() -> &'static str {
         "loongarch64" => "loongarch64-qemu-virt",
         _ => panic!("Unsupported architecture: {}", arch),
     }
+    .to_string()
 }
 
 fn get_log_level(feature_list: &str) -> &str {

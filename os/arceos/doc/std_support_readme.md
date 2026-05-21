@@ -43,6 +43,27 @@ Supported targets used by examples:
 - per-arch QEMU runner
 - `build-std` settings for build standard library
 
+## Build for real hardware
+
+By default, `arceos-rust` builds for the QEMU virtual platform (e.g. `riscv64-qemu-virt`). To target real hardware, set the `AX_PLATFORM` environment variable to a supported platform name:
+
+```bash
+AX_PLATFORM=riscv64-sg2002 cargo build --target riscv64gc-unknown-hermit
+```
+
+This selects the platform-specific crate (e.g. `ax-plat-riscv64-sg2002`) and its hardware configuration instead of the default QEMU platform.
+
+Currently supported platforms:
+
+- `riscv64-sg2002` — Cvitek SG2002 (LicheeRV Nano), MMIO bus, UART console, RTC
+
+To produce a bootable image for U-Boot:
+
+```bash
+rust-objcopy --strip-all -O binary target/riscv64gc-unknown-hermit/debug/<binary> out.bin
+mkimage -A riscv -O linux -T kernel -C none -a 0x80200000 -d out.bin out.uimg
+```
+
 ## Port an existing Rust project
 
 ### 1) Add dependency

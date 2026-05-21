@@ -374,6 +374,7 @@ dependencies = [
  "ax-feat",
  "ax-io",
  "ax-kspin",
+ "ax-plat-riscv64-sg2002",
  "ax-posix-api",
  "ax-runtime",
  "log",

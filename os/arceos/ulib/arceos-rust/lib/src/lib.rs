@@ -5,6 +5,10 @@
 
 extern crate alloc;
 
+// platform dependencies
+#[cfg(feature = "plat-riscv64-sg2002")]
+extern crate ax_plat_riscv64_sg2002;
+
 mod interface;
 
 use ax_api::modules::ax_log::{debug, info};
