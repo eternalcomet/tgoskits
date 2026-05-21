@@ -90,31 +90,39 @@ struct GptPartitionEntry {
     partition_name: [u16; 36], // UTF-16LE
 }
 
-/// GPT partition scanner
+/// Partition scanner: tries GPT first, then MBR, then whole-disk fallback.
 pub fn scan_gpt_partitions(disk: &mut Disk) -> AxResult<Vec<PartitionInfo>> {
-    info!("Scanning for GPT partitions...");
+    info!("Scanning for partitions...");
 
     let disk_size = disk.size();
     if disk_size == 0 {
         return Ok(Vec::new());
     }
 
-    // First, try to parse GPT partition table
+    // 1) Try GPT
     match parse_gpt_partitions(disk) {
         Ok(partitions) if !partitions.is_empty() => {
             info!("Found {} GPT partitions", partitions.len());
             return Ok(partitions);
         }
-        Ok(_) => {
-            info!("No GPT partitions found, trying MBR...");
-        }
+        Ok(_) => info!("No GPT partitions found, trying MBR..."),
         Err(e) => {
             warn!("Failed to parse GPT: {:?}", e);
             info!("Trying MBR...");
         }
     }
 
-    // If both GPT fail, treat the whole disk as a single partition
+    // 2) Try MBR
+    match parse_mbr_partitions(disk) {
+        Ok(partitions) if !partitions.is_empty() => {
+            info!("Found {} MBR partitions", partitions.len());
+            return Ok(partitions);
+        }
+        Ok(_) => warn!("No MBR partitions found"),
+        Err(e) => warn!("Failed to parse MBR: {:?}", e),
+    }
+
+    // 3) Fallback: whole disk as single partition
     warn!("No partition table found, treating whole disk as single partition");
     let filesystem_type = detect_filesystem_type(disk, 0);
     let partition = PartitionInfo {
@@ -130,6 +138,107 @@ pub fn scan_gpt_partitions(disk: &mut Disk) -> AxResult<Vec<PartitionInfo>> {
     };
 
     Ok(vec![partition])
+}
+
+/// MBR partition table entry (16 bytes at offset 0x1BE + i*16)
+#[repr(C, packed)]
+struct MbrPartitionEntry {
+    boot_indicator: u8,
+    start_chs: [u8; 3],
+    partition_type: u8,
+    end_chs: [u8; 3],
+    start_lba: [u8; 4],
+    total_sectors: [u8; 4],
+}
+
+/// Parse MBR (DOS) partition table from LBA 0.
+fn parse_mbr_partitions(disk: &mut Disk) -> AxResult<Vec<PartitionInfo>> {
+    let mut mbr = [0u8; 512];
+    disk.set_position(0);
+    if read_exact(disk, &mut mbr).is_err() {
+        return Err(AxError::InvalidData);
+    }
+
+    // Check MBR signature
+    if mbr[0x1FE] != 0x55 || mbr[0x1FF] != 0xAA {
+        return Err(AxError::InvalidData);
+    }
+
+    let mut partitions = Vec::new();
+
+    for i in 0..4 {
+        let entry_offset = 0x1BE + i * 16;
+        let entry = MbrPartitionEntry {
+            boot_indicator: mbr[entry_offset],
+            start_chs: [
+                mbr[entry_offset + 1],
+                mbr[entry_offset + 2],
+                mbr[entry_offset + 3],
+            ],
+            partition_type: mbr[entry_offset + 4],
+            end_chs: [
+                mbr[entry_offset + 5],
+                mbr[entry_offset + 6],
+                mbr[entry_offset + 7],
+            ],
+            start_lba: [
+                mbr[entry_offset + 8],
+                mbr[entry_offset + 9],
+                mbr[entry_offset + 10],
+                mbr[entry_offset + 11],
+            ],
+            total_sectors: [
+                mbr[entry_offset + 12],
+                mbr[entry_offset + 13],
+                mbr[entry_offset + 14],
+                mbr[entry_offset + 15],
+            ],
+        };
+
+        if entry.partition_type == 0 {
+            continue;
+        }
+
+        let start_lba = u32::from_le_bytes(entry.start_lba) as u64;
+        let total_sectors = u32::from_le_bytes(entry.total_sectors) as u64;
+
+        if total_sectors == 0 {
+            continue;
+        }
+
+        let ending_lba = start_lba + total_sectors - 1;
+
+        let filesystem_type = detect_filesystem_type(disk, start_lba);
+        let filesystem_uuid = if let Some(ref fs) = filesystem_type {
+            read_filesystem_uuid_simple(disk, start_lba, fs)
+        } else {
+            None
+        };
+
+        info!(
+            "MBR partition {}: type=0x{:02X}, LBA {}..{}, {} bytes, fs={:?}",
+            i,
+            entry.partition_type,
+            start_lba,
+            ending_lba,
+            total_sectors * 512,
+            filesystem_type
+        );
+
+        partitions.push(PartitionInfo {
+            index: i as u32,
+            name: format!("part{}", i),
+            partition_type_guid: [0; 16],
+            unique_partition_guid: [0; 16],
+            filesystem_uuid,
+            starting_lba: start_lba,
+            ending_lba,
+            size_bytes: total_sectors * 512,
+            filesystem_type,
+        });
+    }
+
+    Ok(partitions)
 }
 
 /// Parse GPT partition table
