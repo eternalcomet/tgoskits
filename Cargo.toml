@@ -14,6 +14,7 @@ lto = true
 resolver = "3"
 members = [
     "components/aarch64_sysreg",
+    "components/aic8800",
     "components/arm-scmi-rs",
     "components/arm_pl011",
     "components/arm_pl031",
@@ -243,6 +244,7 @@ members = [
 [workspace.dependencies]
 # Local workspace crates
 aarch64_sysreg = { version = "0.3.7", path = "components/aarch64_sysreg" }
+aic8800 = { version = "0.1.0", path = "components/aic8800" }
 arm-scmi-rs = { version = "0.1.2", path = "components/arm-scmi-rs" }
 arceos-affinity = { version = "0.3.1", path = "test-suit/arceos/rust/task/affinity" }
 arceos-backtrace-raw-basic = { version = "0.3.1", path = "test-suit/arceos/rust/backtrace-raw-basic" }
