@@ -178,7 +178,7 @@ impl SdioTransport {
     ///
     /// 当流控不足时让出 CPU，等待 RX 线程处理数据后流控自然恢复，
     /// 而非 busy-wait 旋转浪费 CPU 时间。
-    pub fn wait_flow_ctrl(&self, max_retries: u32, _spin_count: u32) -> bool {
+    pub fn wait_flow_ctrl(&self, max_retries: u32) -> bool {
         for _ in 0..max_retries {
             if self.check_flow_ctrl_available() {
                 return true;
@@ -189,12 +189,7 @@ impl SdioTransport {
     }
 
     /// 等待流控就绪（带长度检查，yield 模式）
-    pub fn wait_flow_ctrl_for_size(
-        &self,
-        send_len: usize,
-        max_retries: u32,
-        _spin_count: u32,
-    ) -> bool {
+    pub fn wait_flow_ctrl_for_size(&self, send_len: usize, max_retries: u32) -> bool {
         for _ in 0..max_retries {
             if self.check_flow_ctrl_for_size(send_len) {
                 return true;

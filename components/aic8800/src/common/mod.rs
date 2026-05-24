@@ -109,12 +109,10 @@ pub const HOST_START_APP_FNCALL: u32 = 4;
 pub const HOST_START_APP_DUMMY: u32 = 5;
 
 // ============================================================
-// 时钟和延时
+// 时钟
 // ============================================================
 pub const FIRMWARE_START_CLOCK_FREQ: u32 = 400_000;
 pub const DEFAULT_CLOCK_FREQ: u32 = 25_000_000;
-pub const DELAY_10MS: u32 = 500_000;
-pub const DELAY_5MS: u32 = 250_000;
 
 // ============================================================
 // 芯片型号

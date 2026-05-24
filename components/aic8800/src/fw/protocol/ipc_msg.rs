@@ -2,6 +2,8 @@
 //!
 //! 实现消息构建、SDIO 传输、响应解析。
 
+use core::time::Duration;
+
 use sdio_host::{SdioHost, error::SdioError};
 
 use super::super::chip::{
@@ -99,8 +101,6 @@ const TAIL_LEN: usize = 4;
 // ============================================================
 /// 流控重试最大次数
 const FLOW_CONTROL_MAX_RETRY: u32 = 50;
-/// 流控重试间隔 (spin_loop 次数)
-const FLOW_CONTROL_RETRY_INTERVAL: u32 = 2000;
 
 // ============================================================
 // 响应等待常量
@@ -109,12 +109,8 @@ const FLOW_CONTROL_RETRY_INTERVAL: u32 = 2000;
 const SDIO_OTHER_INTERRUPT_FLAG: u8 = 0x80;
 /// 响应超时最大重试次数
 const RESPONSE_MAX_RETRY: u32 = 100_000;
-/// 响应轮询间隔 (spin_loop 次数)
-const RESPONSE_POLL_INTERVAL: u32 = 1000;
 /// FIFO 读取错误最大重试次数
 const FIFO_READ_MAX_RETRY: u32 = 5;
-/// FIFO 读取错误后恢复等待时间 (spin_loop 次数)
-const FIFO_READ_RECOVERY_DELAY: u32 = 500_000;
 
 use crate::common::crc8_ponl_107;
 
@@ -281,9 +277,7 @@ impl<'a, H: SdioHost> IpcTransport<'a, H> {
                 log::error!("IPC: flow control timeout, last fc_reg=0x{:02x}", fc_reg);
                 return Err(SdioError::Timeout);
             }
-            for _ in 0..FLOW_CONTROL_RETRY_INTERVAL {
-                core::hint::spin_loop();
-            }
+            ax_task::sleep(Duration::from_millis(1));
         }
     }
 
@@ -294,11 +288,9 @@ impl<'a, H: SdioHost> IpcTransport<'a, H> {
         Ok(())
     }
 
-    /// 等待 SDIO 接口稳定
+    /// 等待 SDIO 接口稳定 (Linux: udelay(200)~mdelay(2))
     fn wait_sdio_stable(&self) {
-        for _ in 0..FIFO_READ_RECOVERY_DELAY {
-            core::hint::spin_loop();
-        }
+        ax_task::sleep(Duration::from_millis(2));
     }
 
     /// 处理 FIFO 读取错误
@@ -393,9 +385,7 @@ impl<'a, H: SdioHost> IpcTransport<'a, H> {
                         log::error!("IPC: response timeout for msg_id=0x{:04x}", msg_id);
                         return Err(SdioError::Timeout);
                     }
-                    for _ in 0..RESPONSE_POLL_INTERVAL {
-                        core::hint::spin_loop();
-                    }
+                    ax_task::sleep(Duration::from_millis(1));
                 }
                 Err(e) => {
                     log::warn!("IPC: poll_block_count error: {:?}", e);

@@ -3,14 +3,14 @@
 //! 包含驱动初始化相关函数
 
 use alloc::{vec, vec::Vec};
-use core::sync::atomic::Ordering;
+use core::{sync::atomic::Ordering, time::Duration};
 
 use log::{error, warn};
 use sdio_host::SdioHost;
 
 use crate::{
     common::{
-        ChipVariant, DELAY_5MS, SDIO_TYPE_CFG_CMD_RSP, SDIOWIFI_BLOCK_CNT_REG,
+        ChipVariant, SDIO_TYPE_CFG_CMD_RSP, SDIOWIFI_BLOCK_CNT_REG,
         SDIOWIFI_BYTEMODE_ENABLE_REG_V3, SDIOWIFI_FLOW_CTRL_Q1_REG_V3, SDIOWIFI_FLOW_CTRL_REG,
         SDIOWIFI_FLOWCTRL_MASK, SDIOWIFI_INTR_CONFIG_REG, SDIOWIFI_INTR_ENABLE_REG_V3,
         SDIOWIFI_MISC_INT_STATUS_REG_V3, SDIOWIFI_RD_FIFO_ADDR, SDIOWIFI_RD_FIFO_ADDR_V3,
@@ -140,9 +140,7 @@ fn check_flow_control_polling<H: SdioHost>(sdio: &H, is_v3: bool) -> Result<(), 
         if retry >= FLOW_CONTROL_MAX_RETRY - 1 {
             return Err("flow_ctrl timeout");
         }
-        for _ in 0..FLOW_CONTROL_RETRY_INTERVAL {
-            core::hint::spin_loop();
-        }
+        ax_task::sleep(Duration::from_millis(1));
     }
     Ok(())
 }
@@ -169,9 +167,7 @@ fn poll_for_response<H: SdioHost>(
         }
 
         if raw & SDIO_OTHER_INTERRUPT != 0 {
-            for _ in 0..RESPONSE_POLL_INTERVAL {
-                core::hint::spin_loop();
-            }
+            ax_task::sleep(Duration::from_millis(1));
             continue;
         }
 
@@ -180,9 +176,7 @@ fn poll_for_response<H: SdioHost>(
             if retry > RESPONSE_MAX_RETRY - 1 {
                 return Err("response timeout");
             }
-            for _ in 0..RESPONSE_POLL_INTERVAL {
-                core::hint::spin_loop();
-            }
+            ax_task::sleep(Duration::from_millis(1));
             continue;
         }
 
@@ -210,9 +204,7 @@ fn read_and_parse_response<H: SdioHost>(
     let mut rx_buf: Vec<u8> = vec![0u8; read_len];
 
     if sdio.read_fifo(1, rd_fifo_reg(is_v3), &mut rx_buf).is_err() {
-        for _ in 0..RESPONSE_READ_DELAY {
-            core::hint::spin_loop();
-        }
+        ax_task::sleep(Duration::from_millis(2));
         return Err("CRC error, retrying");
     }
 
@@ -317,9 +309,7 @@ fn drain_stale_data<H: SdioHost>(sdio: &H, is_v3: bool) {
 /// 等待固件 SDIO 接口稳定
 fn wait_for_firmware_stabilization() {
     log::debug!("[fdrv] waiting for firmware SDIO interface to stabilize...");
-    for _ in 0..CHIP_STARTUP_DELAY {
-        core::hint::spin_loop();
-    }
+    ax_task::sleep(Duration::from_millis(200));
 }
 
 /// 排空初始化前的残留数据
@@ -404,9 +394,7 @@ fn send_lmac_init_commands<H: SdioHost>(
 
 /// 排空 LMAC 初始化后的残留数据
 fn drain_post_init_data<H: SdioHost>(sdio: &H, is_v3: bool) {
-    for _ in 0..INIT_DELAY {
-        core::hint::spin_loop();
-    }
+    ax_task::sleep(Duration::from_millis(50));
 
     for _ in 0..10u32 {
         match sdio.read_byte(1, block_cnt_reg(is_v3)) {
@@ -441,9 +429,7 @@ fn enable_interrupts(bus: &WifiBus) -> Result<(), &'static str> {
     }
 
     // 验证 IRQ 触发
-    for _ in 0..100_000 {
-        core::hint::spin_loop();
-    }
+    ax_task::sleep(Duration::from_millis(2));
     let irq_cnt = IRQ_COUNT.load(Ordering::Relaxed);
     log::debug!("[VERIFY-1] IRQ#38 triggered {} times", irq_cnt);
 
@@ -481,9 +467,7 @@ fn reinit_sdio_func<H: SdioHost>(sdio: &mut H, is_v3: bool) -> Result<(), &'stat
             .map_err(|_| "bytemode disable failed")?;
         sdio.write_byte(1, SDIOWIFI_WAKEUP_REG_V3, SDIOWIFI_V3_WAKEUP_VALUE)
             .map_err(|_| "wakeup write failed")?;
-        for _ in 0..DELAY_5MS {
-            core::hint::spin_loop();
-        }
+        ax_task::sleep(Duration::from_millis(5));
         let sleep_val = sdio
             .read_byte(1, SDIOWIFI_SLEEP_REG_V3)
             .map_err(|_| "sleep_reg read failed")?;

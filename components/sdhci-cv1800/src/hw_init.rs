@@ -136,8 +136,6 @@ pub fn sdio1_hw_init(cfg: &Sdio1HwConfig) {
         SD1_CARDDET_OW | SD1_CARDDET_SW,
     );
 
-    // 6. 等待时钟和复位稳定
-    for _ in 0..10_000u32 {
-        core::hint::spin_loop();
-    }
+    // 6. 等待时钟和复位稳定 (Linux: CCF 内建 PLL lock 等待)
+    crate::delay_ms(1);
 }

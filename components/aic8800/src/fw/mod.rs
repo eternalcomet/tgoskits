@@ -1,5 +1,7 @@
 extern crate alloc;
 
+use core::time::Duration;
+
 // 模块声明
 pub mod chip;
 pub mod config;
@@ -10,8 +12,8 @@ pub mod protocol;
 // 从 chip 模块重新导出常用类型 (实际来自 aic8800_common)
 pub use chip::{ChipRevision, ChipVariant};
 use config::*;
-// 从 firmware 模块重新导出固件集合
 pub use firmware::FirmwareSet;
+// 从 firmware 模块重新导出固件集合
 use firmware::{
     get_firmware_set, init_aic8800d80_firmware, init_aic8800dc_firmware, init_aic8801_firmware,
 };
@@ -34,11 +36,8 @@ pub fn sdio_func_setup<H: SdioHost>(host: &mut H, is_v3: bool) -> Result<(), Sdi
         // 禁用字节模式 (byte_mode_disable = 0x1, 即 "no byte mode")
         host.write_byte(1, SDIOWIFI_BYTEMODE_ENABLE_REG, 0x01)?;
 
-        // 延时等待芯片内部状态稳定 (~10ms)
-        // 在 no_std 无精确 sleep 的环境下, 粗略等待
-        for _ in 0..DELAY_10MS {
-            core::hint::spin_loop();
-        }
+        // 延时等待芯片内部状态稳定 (Linux: mdelay(10))
+        ax_task::sleep(Duration::from_millis(10));
     } else {
         // ---- AIC8800D80 / AIC8800D80X2 (SDIO v3) ----
 
@@ -51,10 +50,8 @@ pub fn sdio_func_setup<H: SdioHost>(host: &mut H, is_v3: bool) -> Result<(), Sdi
         // 唤醒芯片
         host.write_byte(1, SDIOWIFI_WAKEUP_REG_V3, SDIOWIFI_V3_WAKEUP_VALUE)?;
 
-        // 等待 ~5ms
-        for _ in 0..DELAY_5MS {
-            core::hint::spin_loop();
-        }
+        // 等待唤醒稳定 (Linux: mdelay(5))
+        ax_task::sleep(Duration::from_millis(5));
 
         // 检查唤醒状态
         let sleep_val = host.read_byte(1, SDIOWIFI_SLEEP_REG_V3)?;

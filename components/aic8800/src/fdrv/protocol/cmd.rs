@@ -402,7 +402,7 @@ fn build_eapol_frame_buffer(
 
 /// 执行 EAPOL 流控检查
 fn perform_eapol_flow_control(bus: &WifiBus) -> Result<(), CmdError> {
-    if bus.transport.wait_flow_ctrl(50, 10_000) {
+    if bus.transport.wait_flow_ctrl(50) {
         Ok(())
     } else {
         log::error!("[cmd_mgr] EAPOL TX flow_ctrl timeout");

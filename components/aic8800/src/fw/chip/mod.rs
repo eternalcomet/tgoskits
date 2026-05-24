@@ -18,8 +18,6 @@ pub use variant::{
     ChipRevision,
     ChipVariant,
     DEFAULT_CLOCK_FREQ,
-    DELAY_5MS,
-    DELAY_10MS,
     DRV_TASK_ID,
     FIRMWARE_START_CLOCK_FREQ,
     // 固件加载专用常量

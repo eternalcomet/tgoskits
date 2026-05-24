@@ -27,9 +27,6 @@ pub const TX_ALIGNMENT: usize = 4;
 /// 流控重试最大次数
 pub const FLOW_CONTROL_MAX_RETRY: u32 = 100;
 
-/// 流控重试间隔 (spin_loop 次数)
-pub const FLOW_CONTROL_RETRY_INTERVAL: u32 = 5_000;
-
 // ============================================================
 // 响应等待常量
 // ============================================================
@@ -43,24 +40,9 @@ pub const BLOCK_COUNT_MASK: u8 = 0x7F;
 /// 响应超时最大重试次数
 pub const RESPONSE_MAX_RETRY: u32 = 10_000;
 
-/// 响应轮询间隔 (spin_loop 次数)
-pub const RESPONSE_POLL_INTERVAL: u32 = 1_000;
-
-/// 响应数据读取延迟 (spin_loop 次数)
-pub const RESPONSE_READ_DELAY: u32 = 100_000;
-
 // ============================================================
 // 芯片初始化常量
 // ============================================================
-
-/// 芯片启动等待时间 (spin_loop 次数, 约 800ms)
-pub const CHIP_STARTUP_DELAY: u32 = 20_000_000;
-
-/// 中断稳定等待时间 (spin_loop 次数)
-pub const IRQ_STABLE_DELAY: u32 = 100_000;
-
-/// 初始化延迟 (spin_loop 次数, 约 200ms)
-pub const INIT_DELAY: u32 = 5_000_000;
 
 /// 中断配置寄存器值 (使能所有中断)
 pub const INTR_CONFIG_VALUE: u8 = 0x07;
@@ -195,20 +177,6 @@ pub const EAPOL_KEY: u8 = 0x03;
 
 /// EAPOL 帧类型：EAPOL-Encapsulated-ASF-Alert
 pub const EAPOL_ASF_ALERT: u8 = 0x04;
-
-// ============================================================
-// 时序和延迟常量 (spin_loop 次数)
-// ============================================================
-// DELAY_10MS, DELAY_5MS 定义在 aic8800_fw::chip::variant，此处不再重复
-
-/// 1ms 延迟
-pub const DELAY_1MS: u32 = 50_000;
-
-/// 100us 延迟
-pub const DELAY_100US: u32 = 5_000;
-
-/// 50us 延迟
-pub const DELAY_50US: u32 = 2_500;
 
 // ============================================================
 // TX Power 常量

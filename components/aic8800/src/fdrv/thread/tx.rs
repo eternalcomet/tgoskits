@@ -144,7 +144,7 @@ fn perform_cmd_flow_control_and_send(
     cmd: &[u8],
     send_len: usize,
 ) -> (bool, bool) {
-    let fc_ok = transport.wait_flow_ctrl_for_size(send_len, 10, 10_000);
+    let fc_ok = transport.wait_flow_ctrl_for_size(send_len, 10);
 
     let did_work = if fc_ok {
         match transport.write_fifo(1, transport.wr_fifo_addr(), cmd) {

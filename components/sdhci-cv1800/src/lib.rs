@@ -20,11 +20,19 @@ pub mod irq;
 pub mod regs;
 
 use alloc::sync::Arc;
-use core::ptr::{read_volatile, write_volatile};
+use core::{
+    ptr::{read_volatile, write_volatile},
+    time::Duration,
+};
 
 use sdio_host::{SdioCardIrq, SdioHost, cccr::*, cmd::*, error::SdioError};
 
 use crate::regs::*;
+
+#[inline]
+pub(crate) fn delay_ms(ms: u64) {
+    ax_task::sleep(Duration::from_millis(ms));
+}
 
 pub(crate) fn mmio_read<T: Copy>(addr: usize) -> T {
     unsafe { read_volatile(addr as *const T) }
@@ -121,7 +129,7 @@ impl CviSdhci {
             }
             core::hint::spin_loop();
         }
-        for _ in 0..100_000 {
+        for _ in 0..200_000 {
             if let Some(r) = self.try_take(take) {
                 return r;
             }
@@ -487,8 +495,14 @@ impl SdioHost for CviSdhci {
         // Step 3: 上电 3.3V
         self.power_on()?;
 
+        // Step 3.5: 等待电源稳定 (Linux mmc_power_up: 2×mmc_delay(10ms) = 20ms)
+        delay_ms(20);
+
         // Step 4: 设置初始低速时钟 400KHz
         self.setup_initial_clock()?;
+
+        // Step 4.5: 74+ clocks 稳定时间 (SD 规范要求)
+        delay_ms(2);
 
         // Step 5: 使能中断状态位 + 信号（IRQ 驱动模式）
         // PLIC ISR 已在 aic8800_wireless::connect() 中注册
@@ -518,15 +532,15 @@ impl SdioHost for CviSdhci {
                 ready = true;
                 break;
             }
-            for _ in 0..1000 {
-                core::hint::spin_loop();
-            }
+            delay_ms(10);
         }
         if !ready {
             log::error!("[SDIO] Card not ready after CMD5 polling");
             return Err(SdioError::Timeout);
         }
         log::debug!("[SDIO] Card ready (IORDY)");
+
+        delay_ms(10);
 
         // Step 7: CMD3 获取 RCA
         let resp = self.send_cmd(3, 0)?;
@@ -536,6 +550,8 @@ impl SdioHost for CviSdhci {
         // Step 8: CMD7 选卡
         self.send_cmd(7, (self.rca as u32) << 16)?;
 
+        delay_ms(10);
+
         // Step 9: 高速模式
         let bus_speed = self.cmd52_read(0, CCCR_BUS_SPEED_SELECT)?;
         if (bus_speed & 0x01) != 0 {
@@ -543,9 +559,11 @@ impl SdioHost for CviSdhci {
             let hc1 = self.read::<u8>(SDHCI_HOST_CONTROL);
             self.write::<u8>(SDHCI_HOST_CONTROL, hc1 | HC_HIGH_SPEED);
             self.set_clock(50_000_000)?;
+            delay_ms(10);
             log::debug!("[SDIO] High-Speed 50MHz enabled");
         } else {
             self.set_clock(25_000_000)?;
+            delay_ms(10);
         }
 
         // Step 10: 4-bit 总线宽度
@@ -747,9 +765,7 @@ impl SdioHost for CviSdhci {
             if io_ready & (1 << func) != 0 {
                 return Ok(());
             }
-            for _ in 0..100_000 {
-                core::hint::spin_loop();
-            }
+            delay_ms(1);
         }
 
         log::error!("SDIO: Function {} not ready after enabling", func);

@@ -60,9 +60,7 @@ pub fn tcp_speed_test(
     log::debug!("[speed-test] Phase 1: ARP warmup...");
     for _ in 0..500 {
         ax_net::poll_interfaces();
-        for _ in 0..1000 {
-            core::hint::spin_loop();
-        }
+        ax_task::sleep(core::time::Duration::from_millis(1));
     }
 
     // ---- Phase 2: TCP connect ----
@@ -127,7 +125,7 @@ pub fn tcp_speed_test(
                 }
                 for _ in 0..100 {
                     ax_net::poll_interfaces();
-                    core::hint::spin_loop();
+                    ax_task::yield_now();
                 }
             }
         }
@@ -190,7 +188,7 @@ pub fn tcp_speed_test(
                 }
                 for _ in 0..100 {
                     ax_net::poll_interfaces();
-                    core::hint::spin_loop();
+                    ax_task::yield_now();
                 }
             }
         }
