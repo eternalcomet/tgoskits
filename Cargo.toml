@@ -111,6 +111,7 @@ members = [
     "components/starry-signal",
     "components/starry-vm",
     "components/timer_list",
+    "components/wifi-host",
     "components/x86_vcpu",
     "components/x86_vlapic",
     "components/page-table-generic",
@@ -436,6 +437,7 @@ test-simple = { version = "0.3.4", path = "components/crate_interface/test_crate
 test-weak = { version = "0.3.4", path = "components/crate_interface/test_crates/test-weak" }
 test-weak-partial = { version = "0.3.4", path = "components/crate_interface/test_crates/test-weak-partial" }
 tg-xtask = { version = "0.5.11", path = "xtask" }
+wifi-host = { version = "0.1.0", path = "components/wifi-host" }
 x86_vcpu = { version = "0.5.7", path = "components/x86_vcpu", default-features = false }
 x86_vlapic = { version = "0.4.8", path = "components/x86_vlapic" }
 page-table-generic = { version = "0.7.2", path = "components/page-table-generic" }
