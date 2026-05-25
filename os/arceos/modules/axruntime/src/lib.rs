@@ -285,6 +285,9 @@ pub fn rust_main(cpu_id: usize, arg: usize) -> ! {
         core::hint::spin_loop();
     }
 
+    #[cfg(feature = "wifi")]
+    init_wifi();
+
     ax_app_entry();
 
     #[cfg(feature = "multitask")]
@@ -294,6 +297,32 @@ pub fn rust_main(cpu_id: usize, arg: usize) -> ! {
         debug!("main task exited: exit_code={}", 0);
         ax_hal::power::system_off();
     }
+}
+
+#[cfg(feature = "wifi")]
+fn init_wifi() {
+    use wifi_host::WifiDriver;
+
+    let ssid = option_env!("AX_WIFI_SSID").unwrap_or("HONOR 500");
+    let password = option_env!("AX_WIFI_PASSWORD").unwrap_or("");
+    let ip = option_env!("AX_IP").unwrap_or("10.0.2.15");
+    let gateway = option_env!("AX_GW").unwrap_or("10.0.2.2");
+    let prefix: u8 = option_env!("AX_IP_PREFIX")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(24);
+
+    info!("Initializing WiFi...");
+    let mut wifi = aic8800::Aic8800Wifi::init().expect("WiFi init failed");
+    info!("WiFi initialized, connecting to SSID='{}' ...", ssid);
+    wifi.connect(ssid, password).expect("WiFi connect failed");
+    info!("WiFi connected!");
+    let dev = wifi.take_net_device().expect("No WiFi net device");
+    ax_net::register_net_device(dev, ip, prefix, gateway);
+    info!(
+        "WiFi network device registered: {}/{}, gateway={}",
+        ip, prefix, gateway
+    );
+    core::hint::black_box(wifi);
 }
 
 #[cfg(feature = "alloc")]

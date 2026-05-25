@@ -31,6 +31,7 @@ input = ["ax-driver", "dep:ax-input"]
 net = ["ax-driver", "dep:ax-net"]
 net-ng = ["ax-driver", "dep:ax-net-ng"]
 vsock = ["net-ng", "ax-net-ng/vsock"]
+wifi = ["net", "multitask", "dep:aic8800", "dep:wifi-host", "dep:ax-net"]
 
 [dependencies]
 ax-alloc = { workspace = true, optional = true }
@@ -59,3 +60,6 @@ ax-crate-interface = { workspace = true }
 ax-ctor-bare = { workspace = true }
 indoc = "2"
 ax-percpu = { workspace = true, optional = true }
+
+aic8800 = { workspace = true, optional = true }
+wifi-host = { workspace = true, optional = true }
