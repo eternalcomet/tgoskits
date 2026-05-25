@@ -11,12 +11,14 @@ description = "ArceOS network module"
 license.workspace = true
 
 [features]
+dyn = ["ax-driver/dyn"]
 smoltcp = ["dep:smoltcp"]
 default = ["smoltcp"]
 vsock = ["ax-driver/vsock"]
 
 [dependencies]
 ax-driver = { workspace = true, features = ["net"] }
+ax-driver-net.workspace = true
 ax-errno.workspace = true
 ax-hal.workspace = true
 ax-io.workspace = true

@@ -37,18 +37,24 @@ use ax_driver::{AxDeviceContainer, AxNetDevice};
 #[cfg(feature = "smoltcp")]
 pub use self::net_impl::{
     TcpSocket, UdpSocket, bench_receive, bench_transmit, dns_query, poll_interfaces,
+    register_net_device,
 };
 
 /// Initializes the network subsystem by NIC devices.
 #[cfg(feature = "smoltcp")]
 pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {
     use ax_driver::prelude::*;
+    use ax_driver_net::NetDriverOps;
 
     info!("Initialize network subsystem...");
 
     if let Some(dev) = net_devs.take_one() {
         info!("  use NIC 0: {:?}", dev.device_name());
-        net_impl::init(dev);
+        #[cfg(feature = "dyn")]
+        let boxed: alloc::boxed::Box<dyn NetDriverOps> = dev;
+        #[cfg(not(feature = "dyn"))]
+        let boxed: alloc::boxed::Box<dyn NetDriverOps> = alloc::boxed::Box::new(dev);
+        net_impl::init(boxed);
     } else {
         warn!("  No network device found!");
     }

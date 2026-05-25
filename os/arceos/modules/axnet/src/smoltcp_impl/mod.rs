@@ -5,10 +5,11 @@ mod listen_table;
 mod tcp;
 mod udp;
 
-use alloc::vec;
+use alloc::{boxed::Box, vec};
 use core::{cell::RefCell, ops::DerefMut};
 
 use ax_driver::prelude::*;
+use ax_driver_net::NetDriverOps;
 use ax_hal::time::{NANOS_PER_MICROS, wall_time_nanos};
 use ax_lazyinit::LazyInit;
 use ax_sync::Mutex;
@@ -54,7 +55,7 @@ static ETH0: LazyInit<InterfaceWrapper> = LazyInit::new();
 struct SocketSetWrapper<'a>(Mutex<SocketSet<'a>>);
 
 struct DeviceWrapper {
-    inner: RefCell<AxNetDevice>, /* use `RefCell` is enough since it's wrapped in `Mutex` in `InterfaceWrapper`. */
+    inner: RefCell<Box<dyn NetDriverOps>>,
     sockets_for_preprocess: Option<usize>,
 }
 
@@ -128,7 +129,7 @@ impl<'a> SocketSetWrapper<'a> {
 }
 
 impl InterfaceWrapper {
-    fn new(name: &'static str, dev: AxNetDevice, ether_addr: EthernetAddress) -> Self {
+    fn new(name: &'static str, dev: Box<dyn NetDriverOps>, ether_addr: EthernetAddress) -> Self {
         let mut config = Config::new(HardwareAddress::Ethernet(ether_addr));
         config.random_seed = RANDOM_SEED;
 
@@ -166,7 +167,7 @@ impl InterfaceWrapper {
 }
 
 impl DeviceWrapper {
-    fn new(inner: AxNetDevice) -> Self {
+    fn new(inner: Box<dyn NetDriverOps>) -> Self {
         Self {
             inner: RefCell::new(inner),
             sockets_for_preprocess: None,
@@ -235,8 +236,8 @@ impl Device for DeviceWrapper {
     }
 }
 
-struct AxNetRxToken<'a>(&'a RefCell<AxNetDevice>, NetBufPtr, Option<usize>);
-struct AxNetTxToken<'a>(&'a RefCell<AxNetDevice>);
+struct AxNetRxToken<'a>(&'a RefCell<Box<dyn NetDriverOps>>, NetBufPtr, Option<usize>);
+struct AxNetTxToken<'a>(&'a RefCell<Box<dyn NetDriverOps>>);
 
 impl RxToken for AxNetRxToken<'_> {
     fn consume<R, F>(self, f: F) -> R
@@ -314,7 +315,7 @@ pub fn bench_receive() {
     ETH0.dev.lock().bench_receive_bandwidth();
 }
 
-pub(crate) fn init(net_dev: AxNetDevice) {
+pub(crate) fn init(net_dev: Box<dyn NetDriverOps>) {
     let ether_addr = EthernetAddress(net_dev.mac_address().0);
     let mut eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
 
@@ -348,5 +349,40 @@ pub(crate) fn init(net_dev: AxNetDevice) {
     info!("created net interface {:?}:", ETH0.name());
     info!("  ether:    {}", ETH0.ethernet_address());
     info!("  ip:       {ip}/{IP_PREFIX}");
+    info!("  gateway:  {gateway}");
+}
+
+pub fn register_net_device(dev: Box<dyn NetDriverOps>, ip: &str, prefix: u8, gateway: &str) {
+    let ether_addr = EthernetAddress(dev.mac_address().0);
+    let mut eth0 = InterfaceWrapper::new("wlan0", dev, ether_addr);
+
+    let ip_addr = ip.parse().expect("invalid IP address");
+    let gw_addr = gateway.parse().expect("invalid gateway IP address");
+
+    eth0.iface.get_mut().update_ip_addrs(|ip_addrs| {
+        ip_addrs.push(IpCidr::new(ip_addr, prefix)).unwrap();
+    });
+    match gw_addr {
+        IpAddress::Ipv4(v4) => eth0
+            .iface
+            .get_mut()
+            .routes_mut()
+            .add_default_ipv4_route(v4)
+            .unwrap(),
+        IpAddress::Ipv6(v6) => eth0
+            .iface
+            .get_mut()
+            .routes_mut()
+            .add_default_ipv6_route(v6)
+            .unwrap(),
+    };
+
+    ETH0.init_once(eth0);
+    SOCKET_SET.init_once(SocketSetWrapper::new());
+    LISTEN_TABLE.init_once(ListenTable::new());
+
+    info!("registered WiFi net device {:?}:", ETH0.name());
+    info!("  ether:    {}", ETH0.ethernet_address());
+    info!("  ip:       {ip}/{prefix}");
     info!("  gateway:  {gateway}");
 }
